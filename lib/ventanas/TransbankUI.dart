@@ -1,10 +1,12 @@
 import 'dart:convert';
+import 'dart:html';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_launcher_icons/xml_templates.dart';
+import 'package:form_builder_validators/form_builder_validators.dart';
 import 'package:image_network/image_network.dart';
 import 'package:prueba/sliderImagenesHeader/index.dart';
 import 'package:video_player/video_player.dart';
@@ -13,6 +15,8 @@ import 'package:http/http.dart' as http;
 import 'package:webviewx/webviewx.dart';
 import 'package:dio/dio.dart';
 import 'package:get/get.dart';
+import 'package:flutter_form_builder/flutter_form_builder.dart';
+import 'package:intl/intl.dart';
 
 void main() {
   runApp(GetMaterialApp(
@@ -53,6 +57,10 @@ class _PruebaTransbankUIState extends State<PruebaTransbankUI> {
   var mostrarData = false;
   var mostrarData2 = false;
   var mostrarDataStudio = false;
+  var mostrarGridImagenes = true;
+  var mostrarGridImagenes2 = false;
+  var mostrarFormulario = false;
+  var mostrarFormulario2 = false;
   var uidCamara = "";
   var pantalla = 0.0;
   late VideoPlayerController _controller;
@@ -78,6 +86,21 @@ class _PruebaTransbankUIState extends State<PruebaTransbankUI> {
 
   var dispositivo = '';
 
+  //-----------FORMULARIO------//
+
+  bool autoValidate = true;
+  bool readOnly = false;
+  bool showSegmentedControl = true;
+  final _formKey = GlobalKey<FormBuilderState>();
+  bool _ageHasError = false;
+  bool _genderHasError = false;
+
+  var genderOptions = ['Male', 'Female', 'Other'];
+
+  void _onChanged(dynamic val) => debugPrint(val.toString());
+
+  //------FIREBASE----------//
+
   FirebaseFirestore firestore = FirebaseFirestore.instance;
 
   //Obtengo toda la informacion de la coleccion eventos
@@ -96,7 +119,156 @@ class _PruebaTransbankUIState extends State<PruebaTransbankUI> {
 
   late InAppWebViewController webView;
 
+  var nombreEvento = "";
+
+  /* Almacenamos la información del evento seleccionado para utilizarlo en el formualario */
+  Map<String, dynamic>? _eventoSeleccionado;
+
+  Widget entradaFormulario() {
+    //Dividimos la cadena de fechas en dos fechas separadas
+    String fechasDisponibles = _eventoSeleccionado!["fecha"];
+    List<String> fechas = fechasDisponibles.split(" - ");
+    String fechaInicio = fechas[0];
+    String fechaFin = fechas[1];
+
+    //Convertimos a DateTime para poder iterar sobre estas
+    DateTime fechaInicioDateTime = DateFormat("dd/MM/yy").parse(fechaInicio);
+
+    DateTime fechaFinDateTime = DateFormat("dd/MM/yy").parse(fechaFin);
+
+    //Creamos una lista de todas las fechas en el rango con for y add
+    List<DateTime> todasLasFechas = [];
+
+    //Lista donde se almacenarán las fechas seleccionadas
+    List<DateTime> fechasSeleccionadas =
+        []; // Agrega esta variable para almacenar las fechas seleccionadas
+    for (var i = fechaInicioDateTime;
+        i.isBefore(fechaFinDateTime) || i.isAtSameMomentAs(fechaFinDateTime);
+        i = i.add(Duration(days: 1))) {
+      todasLasFechas.add(i);
+    }
+    List<DropdownMenuItem<DateTime>> opciones = todasLasFechas.map((fecha) {
+      String fechaString = DateFormat('dd/MMM/yyyy').format(fecha);
+      return DropdownMenuItem<DateTime>(
+        value: fecha,
+        child: Text(fechaString),
+      );
+    }).toList();
+    return Scaffold(
+      backgroundColor: colorScaffold,
+      body: Padding(
+        padding: EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: FormBuilder(
+                key: _formKey,
+                autovalidateMode: autoValidate
+                    ? AutovalidateMode.always
+                    : AutovalidateMode.disabled,
+                child: Container(
+                  width: dispositivo == "PC"
+                      ? 600
+                      : MediaQuery.of(context).size.width,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      FormBuilderDropdown(
+                        name: 'fecha',
+                        decoration: InputDecoration(
+                          labelText: 'Fecha del evento',
+                        ),
+                        items: opciones,
+                        validator: FormBuilderValidators.compose([
+                          FormBuilderValidators.required(
+                              errorText: "Este campo es obligatorio"),
+                        ]),
+                        onChanged: (value) {
+                          setState(() {});
+                        },
+                      ),
+                      FormBuilderDropdown(
+                        name: 'cantidad',
+                        decoration: InputDecoration(
+                          labelText: 'Seleccione la cantidad de entradas',
+                        ),
+                        items: [
+                          DropdownMenuItem(value: '1', child: Text('1')),
+                          DropdownMenuItem(value: '2', child: Text('2')),
+                          DropdownMenuItem(value: '3', child: Text('3')),
+                          DropdownMenuItem(value: '4', child: Text('4')),
+                        ],
+                        validator: FormBuilderValidators.compose([
+                          FormBuilderValidators.required(
+                              errorText: "Este campo es obligatorio"),
+                        ]),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            SizedBox(
+              height: 50,
+            ),
+            Row(
+              children: [
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: colorMorado,
+                    foregroundColor: colorNaranja,
+                  ),
+                  onPressed: () {
+                    if (_formKey.currentState!.saveAndValidate()) {
+                      var formData = _formKey.currentState!.value;
+                      var fecha = formData['fecha'];
+                      var cantidad = formData['cantidad'];
+
+                      // Aquí puedes hacer lo que quieras con los valores de fecha y cantidad
+
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content:
+                              Text('Tu entrada ha sido agregada al carrito'),
+                        ),
+                      );
+                    }
+                  },
+                  child: Text(
+                    'Enviar',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                SizedBox(
+                  width: 20,
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: colorMorado,
+                    foregroundColor: colorNaranja,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      mostrarGridImagenes = true;
+                    });
+                  },
+                  child: Text(
+                    'Volver',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget gridImagenes() {
+    int contador = 0;
+
     return FutureBuilder<List<Map<String, dynamic>>>(
       future: geteventosData(),
       builder: (context, snapshot) {
@@ -116,6 +288,7 @@ class _PruebaTransbankUIState extends State<PruebaTransbankUI> {
                 String lugar = entry.value["lugar"];
                 String descripcion = entry.value["descripcion"];
                 String fecha = entry.value["fecha"];
+
                 return Container(
                   width: dispositivo == "PC"
                       ? 600
@@ -125,6 +298,7 @@ class _PruebaTransbankUIState extends State<PruebaTransbankUI> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       ImageNetwork(
+                        borderRadius: BorderRadius.circular(10),
                         image: urlImagen,
                         width: dispositivo == "PC"
                             ? 600
@@ -168,6 +342,42 @@ class _PruebaTransbankUIState extends State<PruebaTransbankUI> {
                         ),
                       ),
                       SizedBox(height: 16.0),
+                      Row(
+                        children: [
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: colorMorado,
+                              foregroundColor: colorNaranja,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                mostrarGridImagenes = false;
+                                _eventoSeleccionado = entry.value;
+                              });
+                            },
+                            child: Text(
+                              "¡Asistir!",
+                              style: TextStyle(
+                                  fontSize: 16.0, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          SizedBox(
+                            width: 20,
+                          ),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: colorMorado,
+                              foregroundColor: colorNaranja,
+                            ),
+                            onPressed: () {},
+                            child: Text(
+                              "Más información",
+                              style: TextStyle(
+                                  fontSize: 16.0, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 );
@@ -179,16 +389,22 @@ class _PruebaTransbankUIState extends State<PruebaTransbankUI> {
     );
   }
 
+/*   Widget formularioEventos(){
+    return 
+  }; */
+
   Widget vistaTransbankStudio() {
     Future.delayed(Duration(seconds: 1), () {
       setState(() {
-        mostrarDataStudio = true;
+        mostrarFormulario = true;
       });
     });
     return Container(
         width: MediaQuery.of(context).size.width,
         height: MediaQuery.of(context).size.height - 300,
-        child: gridImagenes());
+        child: mostrarGridImagenes
+            ? gridImagenes()
+            : (mostrarFormulario ? entradaFormulario() : Container()));
   }
 
   Widget vistaWeb() {
@@ -233,8 +449,11 @@ class _PruebaTransbankUIState extends State<PruebaTransbankUI> {
                       children: [
                         Center(
                             child: Text(
-                          'Eventos',
+                          mostrarGridImagenes
+                              ? 'Eventos'
+                              : _eventoSeleccionado!["nombre"],
                           style: TextStyle(
+                            color: Colors.white,
                             fontSize: 30,
                             fontWeight: FontWeight.bold,
                           ),
@@ -245,44 +464,285 @@ class _PruebaTransbankUIState extends State<PruebaTransbankUI> {
                             duration: Duration(milliseconds: 500),
                             curve: Curves.easeInOutBack,
                             width: mostrarControl ? 250 : 80,
-                            height: 70,
                             decoration: BoxDecoration(
-                                color: colorMorado,
-                                borderRadius: BorderRadius.circular(40)),
-                            child: GestureDetector(
-                              onTap: (() {
-                                setState(() {
-                                  mostrarControl = !mostrarControl;
-                                  mostrarData2 = false;
-                                });
-                                Future.delayed(
-                                    Duration(
-                                        milliseconds:
-                                            mostrarControl2 ? 50 : 550), () {
-                                  setState(() {
-                                    mostrarControl2 = !mostrarControl2;
-                                    mostrarData = false;
-                                  });
-                                });
-                              }),
-                              child: mostrarControl2
-                                  ? Center(
-                                      child: Text(
-                                        'Carrito de compras',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 24,
-                                          fontWeight: FontWeight.bold,
+                              color: colorMorado,
+                              borderRadius: BorderRadius.circular(40),
+                            ),
+                            child: SingleChildScrollView(
+                              child: Container(
+                                height:
+                                    70, // Ajustar a la altura inicial del contenedor
+                                child: GestureDetector(
+                                  onTap: (() {
+                                    setState(() {
+                                      mostrarControl = !mostrarControl;
+                                      mostrarData2 = false;
+                                    });
+                                    Future.delayed(
+                                        Duration(
+                                            milliseconds: mostrarControl2
+                                                ? 50
+                                                : 550), () {
+                                      setState(() {
+                                        mostrarControl2 = !mostrarControl2;
+                                        mostrarData = false;
+                                      });
+                                    });
+                                  }),
+                                  child: mostrarControl2
+                                      ? Center(
+                                          child: Column(
+                                            children: [
+                                              SizedBox(
+                                                height: 20,
+                                              ),
+                                              Text(
+                                                'Resumen de tu compra',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 20,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                              SizedBox(
+                                                  height:
+                                                      2), // Ajustar espacio entre elementos
+                                              SizedBox(
+                                                  height:
+                                                      2), // Ajustar espacio entre elementos
+                                              Container(
+                                                width: 246.3,
+                                                decoration: BoxDecoration(
+                                                  color: colorMorado,
+                                                ),
+                                                child: Column(
+                                                  children: [
+                                                    Container(
+                                                      width: 248,
+                                                      height: 30,
+                                                      color: colorMorado,
+                                                    ),
+                                                    Row(
+                                                      children: [
+                                                        Container(
+                                                          width: 200,
+                                                          color: colorMorado,
+                                                          child: Text(
+                                                            'nombre evento',
+                                                            style: TextStyle(
+                                                              color:
+                                                                  Colors.white,
+                                                              fontSize: 10,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                        Container(
+                                                          width: 46,
+                                                          color: colorMorado,
+                                                          child: Text(
+                                                            '500',
+                                                            style: TextStyle(
+                                                              color:
+                                                                  Colors.white,
+                                                              fontSize: 10,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                    SizedBox(
+                                                      height: 20,
+                                                    ),
+                                                    Row(
+                                                      children: [
+                                                        Container(
+                                                          width: 200,
+                                                          color: colorMorado,
+                                                          child: Text(
+                                                            'nombre evento',
+                                                            style: TextStyle(
+                                                              color:
+                                                                  Colors.white,
+                                                              fontSize: 10,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                        Container(
+                                                          width: 46,
+                                                          color: colorMorado,
+                                                          child: Text(
+                                                            '500',
+                                                            style: TextStyle(
+                                                              color:
+                                                                  Colors.white,
+                                                              fontSize: 10,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                    SizedBox(
+                                                      height: 10,
+                                                    ),
+                                                    SizedBox(
+                                                      height: 10,
+                                                    ),
+                                                    SizedBox(
+                                                      height: 10,
+                                                    ),
+                                                    Row(
+                                                      children: [
+                                                        Container(
+                                                          decoration:
+                                                              BoxDecoration(
+                                                            color: colorMorado,
+                                                          ),
+                                                          width: 200,
+                                                          child: Text(
+                                                            'Total',
+                                                            style: TextStyle(
+                                                              color:
+                                                                  Colors.white,
+                                                              fontSize: 10,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                        Container(
+                                                          decoration:
+                                                              BoxDecoration(
+                                                            color: colorMorado,
+                                                          ),
+                                                          width: 46,
+                                                          child: Text(
+                                                            '1000',
+                                                            style: TextStyle(
+                                                              color:
+                                                                  Colors.white,
+                                                              fontSize: 10,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                    Container(
+                                                        decoration:
+                                                            BoxDecoration(
+                                                          borderRadius:
+                                                              BorderRadius
+                                                                  .circular(40),
+                                                          color: colorMorado,
+                                                        ),
+                                                        width: 246.3,
+                                                        child: ElevatedButton(
+                                                            onPressed: () {},
+                                                            child: Text(
+                                                                "Ir al carrito"))),
+                                                    SizedBox(
+                                                      height: 5,
+                                                    ),
+                                                    Container(
+                                                        decoration:
+                                                            BoxDecoration(
+                                                          borderRadius:
+                                                              BorderRadius
+                                                                  .circular(40),
+                                                          color: colorMorado,
+                                                        ),
+                                                        width: 246.3,
+                                                        child: ElevatedButton(
+                                                            style:
+                                                                ElevatedButton
+                                                                    .styleFrom(
+                                                              backgroundColor:
+                                                                  colorNaranja,
+                                                              foregroundColor:
+                                                                  colorMorado,
+                                                            ),
+                                                            onPressed: () {},
+                                                            child: Text(
+                                                                "Pagar directamente"))),
+                                                  ],
+                                                ),
+                                              ),
+
+                                              // Añadir más elementos aquí
+                                            ],
+                                          ),
+                                        )
+                                      : Icon(
+                                          Icons.shopping_cart_sharp,
+                                          color: colorNaranja,
                                         ),
-                                      ),
-                                    )
-                                  : Icon(
-                                      Icons.shopping_cart_sharp,
-                                      color: colorNaranja,
-                                    ),
+                                ),
+                              ),
                             ),
                           ),
-                        )
+                        ),
+                        mostrarGridImagenes == false
+                            ? Align(
+                                alignment: Alignment.centerLeft,
+                                child: AnimatedContainer(
+                                  duration: Duration(milliseconds: 500),
+                                  curve: Curves.easeInOutBack,
+                                  width: mostrarData ? 250 : 80,
+                                  height: 70,
+                                  decoration: BoxDecoration(
+                                      color: colorMorado,
+                                      borderRadius: BorderRadius.circular(40)),
+                                  child: GestureDetector(
+                                    onTap: (() {
+                                      setState(() {
+                                        mostrarData = !mostrarData;
+                                        mostrarControl2 = false;
+                                      });
+                                      Future.delayed(
+                                          Duration(
+                                              milliseconds:
+                                                  mostrarData2 ? 50 : 550), () {
+                                        setState(() {
+                                          mostrarData2 = !mostrarData2;
+                                          mostrarControl = false;
+                                        });
+                                      });
+                                    }),
+                                    child: mostrarData2
+                                        ? Center(
+                                            child: Text(
+                                              'Eventos',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 24,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          )
+                                        : Icon(
+                                            Icons.confirmation_num_rounded,
+                                            color: colorNaranja,
+                                            size: 60,
+                                          ),
+                                  ),
+                                ),
+                              )
+                            : SizedBox()
                       ],
                     )),
                 Container(
@@ -324,7 +784,7 @@ class _PruebaTransbankUIState extends State<PruebaTransbankUI> {
                 color: Colors.black,
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: gridImagenes(),
+              child: vistaTransbankStudio(),
             ),
 /*             (pantalla < 882)
                 ? Container(

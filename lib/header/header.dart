@@ -510,7 +510,7 @@ class _HeaderState extends State<Header> {
             SizedBox(
               height: 30,
             ),
-            btnSideBar('Prueba Transbank', Icons.payment_rounded, 3),
+            btnSideBar('Eventos', Icons.event, 3),
             SizedBox(
               height: 30,
             ),
