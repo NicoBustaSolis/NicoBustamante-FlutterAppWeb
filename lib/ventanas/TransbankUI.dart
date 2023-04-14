@@ -121,6 +121,10 @@ class _PruebaTransbankUIState extends State<PruebaTransbankUI> {
 
   var nombreEvento = "";
 
+  //Lista donde se almacenarán las fechas seleccionadas
+  List<DateTime> fechasSeleccionadas =
+      []; // Agrega esta variable para almacenar las fechas seleccionadas
+
   /* Almacenamos la información del evento seleccionado para utilizarlo en el formualario */
   Map<String, dynamic>? _eventoSeleccionado;
 
@@ -130,28 +134,40 @@ class _PruebaTransbankUIState extends State<PruebaTransbankUI> {
     List<String> fechas = fechasDisponibles.split(" - ");
     String fechaInicio = fechas[0];
     String fechaFin = fechas[1];
+    //Creamos una lista de todas las fechas en el rango con for y add
+    List<DateTime> todasLasFechas = [];
 
     //Convertimos a DateTime para poder iterar sobre estas
     DateTime fechaInicioDateTime = DateFormat("dd/MM/yy").parse(fechaInicio);
 
     DateTime fechaFinDateTime = DateFormat("dd/MM/yy").parse(fechaFin);
 
-    //Creamos una lista de todas las fechas en el rango con for y add
-    List<DateTime> todasLasFechas = [];
-
-    //Lista donde se almacenarán las fechas seleccionadas
-    List<DateTime> fechasSeleccionadas =
-        []; // Agrega esta variable para almacenar las fechas seleccionadas
     for (var i = fechaInicioDateTime;
         i.isBefore(fechaFinDateTime) || i.isAtSameMomentAs(fechaFinDateTime);
         i = i.add(Duration(days: 1))) {
       todasLasFechas.add(i);
     }
-    List<DropdownMenuItem<DateTime>> opciones = todasLasFechas.map((fecha) {
+    List<FilterChip> opciones = todasLasFechas.map((fecha) {
       String fechaString = DateFormat('dd/MMM/yyyy').format(fecha);
-      return DropdownMenuItem<DateTime>(
-        value: fecha,
-        child: Text(fechaString),
+      return FilterChip(
+        label: Text(fechaString),
+        selected: fechasSeleccionadas.contains(fecha),
+        backgroundColor: Colors
+            .green, // Agrega el color de fondo de las fechas seleccionadas
+        avatar: fechasSeleccionadas.contains(
+                fecha) // Agrega el icono líder a las fechas seleccionadas
+            ? Icon(Icons.check, color: Colors.white)
+            : null,
+        onSelected: (bool selected) {
+          setState(() {
+            if (selected) {
+              fechasSeleccionadas.add(fecha);
+            } else {
+              fechasSeleccionadas.remove(fecha);
+            }
+            print(fechasSeleccionadas);
+          });
+        },
       );
     }).toList();
     return Scaffold(
@@ -174,36 +190,120 @@ class _PruebaTransbankUIState extends State<PruebaTransbankUI> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      FormBuilderDropdown(
-                        name: 'fecha',
-                        decoration: InputDecoration(
-                          labelText: 'Fecha del evento',
-                        ),
-                        items: opciones,
-                        validator: FormBuilderValidators.compose([
-                          FormBuilderValidators.required(
-                              errorText: "Este campo es obligatorio"),
-                        ]),
-                        onChanged: (value) {
-                          setState(() {});
-                        },
-                      ),
-                      FormBuilderDropdown(
-                        name: 'cantidad',
-                        decoration: InputDecoration(
-                          labelText: 'Seleccione la cantidad de entradas',
-                        ),
-                        items: [
-                          DropdownMenuItem(value: '1', child: Text('1')),
-                          DropdownMenuItem(value: '2', child: Text('2')),
-                          DropdownMenuItem(value: '3', child: Text('3')),
-                          DropdownMenuItem(value: '4', child: Text('4')),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.date_range,
+                            color: colorMorado,
+                            size: 35,
+                          ),
+                          SizedBox(width: 5),
+                          Text(
+                            "Fechas Disponibles",
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: colorMorado,
+                                fontSize: 25),
+                          ),
                         ],
-                        validator: FormBuilderValidators.compose([
-                          FormBuilderValidators.required(
-                              errorText: "Este campo es obligatorio"),
-                        ]),
                       ),
+                      SizedBox(height: 20),
+                      Expanded(
+                          flex: 100,
+                          child: Wrap(
+                            children: todasLasFechas.map((fecha) {
+                              String fechaString =
+                                  DateFormat('dd/MMM/yyyy').format(fecha);
+                              return Container(
+                                margin: EdgeInsets.all(5),
+                                child: FilterChip(
+                                  label: Text(fechaString),
+                                  labelStyle: TextStyle(color: Colors.white),
+                                  backgroundColor: colorNaranja,
+                                  checkmarkColor: colorNaranja,
+                                  selectedColor: colorMorado,
+                                  selected: fechasSeleccionadas.contains(fecha),
+                                  onSelected: (bool selected) {
+                                    setState(() {
+                                      if (selected) {
+                                        fechasSeleccionadas.add(fecha);
+                                        print("se ha agregado una fecha");
+                                      } else {
+                                        fechasSeleccionadas.remove(fecha);
+                                        print("Se ha eliminado una fecha");
+                                      }
+                                      print(fechasSeleccionadas);
+                                    });
+                                  },
+                                ),
+                              );
+                            }).toList(),
+                          )),
+                      Divider(
+                        color: colorNaranja,
+                        thickness: 1,
+                      ),
+                      SizedBox(
+                        height: 20,
+                      ),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.confirmation_num_rounded,
+                            color: colorMorado,
+                            size: 35,
+                          ),
+                          SizedBox(width: 5),
+                          Text(
+                            "Seleccione la cantidad de entradas",
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: colorMorado,
+                                fontSize: 25),
+                          ),
+                        ],
+                      ),
+                      Expanded(
+                        flex: 150,
+                        child: FormBuilderDropdown(
+                          dropdownColor: colorNaranja,
+                          focusColor: Colors.transparent,
+                          name: 'cantidad',
+                          decoration: InputDecoration(),
+                          items: [
+                            DropdownMenuItem(
+                                value: '1',
+                                child: Text(
+                                  '1',
+                                  style: TextStyle(color: colorMorado),
+                                )),
+                            DropdownMenuItem(
+                                value: '2',
+                                child: Text(
+                                  '2',
+                                  style: TextStyle(color: colorMorado),
+                                )),
+                            DropdownMenuItem(
+                                value: '3',
+                                child: Text(
+                                  '3',
+                                  style: TextStyle(color: colorMorado),
+                                )),
+                            DropdownMenuItem(
+                                value: '4',
+                                child: Text(
+                                  '4',
+                                  style: TextStyle(color: colorMorado),
+                                )),
+                          ],
+                          validator: FormBuilderValidators.compose(
+                            [
+                              FormBuilderValidators.required(
+                                  errorText: "Este campo es obligatorio"),
+                            ],
+                          ),
+                        ),
+                      )
                     ],
                   ),
                 ),
@@ -222,10 +322,12 @@ class _PruebaTransbankUIState extends State<PruebaTransbankUI> {
                   onPressed: () {
                     if (_formKey.currentState!.saveAndValidate()) {
                       var formData = _formKey.currentState!.value;
-                      var fecha = formData['fecha'];
                       var cantidad = formData['cantidad'];
 
                       // Aquí puedes hacer lo que quieras con los valores de fecha y cantidad
+                      for (var fecha in fechasSeleccionadas) {
+                        // Procesar cada fecha seleccionada
+                      }
 
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
@@ -449,9 +551,7 @@ class _PruebaTransbankUIState extends State<PruebaTransbankUI> {
                       children: [
                         Center(
                             child: Text(
-                          mostrarGridImagenes
-                              ? 'Eventos'
-                              : _eventoSeleccionado!["nombre"],
+                          mostrarGridImagenes ? 'Eventos' : "Comprar entradas",
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 30,
@@ -463,7 +563,9 @@ class _PruebaTransbankUIState extends State<PruebaTransbankUI> {
                           child: AnimatedContainer(
                             duration: Duration(milliseconds: 500),
                             curve: Curves.easeInOutBack,
-                            width: mostrarControl ? 250 : 80,
+                            width: mostrarGridImagenes
+                                ? (mostrarControl ? 250 : 80)
+                                : 250,
                             decoration: BoxDecoration(
                               color: colorMorado,
                               borderRadius: BorderRadius.circular(40),
@@ -472,226 +574,266 @@ class _PruebaTransbankUIState extends State<PruebaTransbankUI> {
                               child: Container(
                                 height:
                                     70, // Ajustar a la altura inicial del contenedor
-                                child: GestureDetector(
-                                  onTap: (() {
-                                    setState(() {
-                                      mostrarControl = !mostrarControl;
-                                      mostrarData2 = false;
-                                    });
-                                    Future.delayed(
-                                        Duration(
-                                            milliseconds: mostrarControl2
-                                                ? 50
-                                                : 550), () {
-                                      setState(() {
-                                        mostrarControl2 = !mostrarControl2;
-                                        mostrarData = false;
-                                      });
-                                    });
-                                  }),
-                                  child: mostrarControl2
-                                      ? Center(
-                                          child: Column(
-                                            children: [
-                                              SizedBox(
-                                                height: 20,
-                                              ),
-                                              Text(
-                                                'Resumen de tu compra',
-                                                style: TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 20,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                              SizedBox(
-                                                  height:
-                                                      2), // Ajustar espacio entre elementos
-                                              SizedBox(
-                                                  height:
-                                                      2), // Ajustar espacio entre elementos
-                                              Container(
-                                                width: 246.3,
-                                                decoration: BoxDecoration(
-                                                  color: colorMorado,
-                                                ),
+                                child: mostrarGridImagenes
+                                    ? GestureDetector(
+                                        onTap: (() {
+                                          setState(() {
+                                            mostrarControl = !mostrarControl;
+                                            mostrarData2 = false;
+                                          });
+                                          Future.delayed(
+                                              Duration(
+                                                  milliseconds: mostrarControl2
+                                                      ? 50
+                                                      : 550), () {
+                                            setState(() {
+                                              mostrarControl2 =
+                                                  !mostrarControl2;
+                                              mostrarData = false;
+                                            });
+                                          });
+                                        }),
+                                        child: mostrarControl2
+                                            ? Center(
                                                 child: Column(
                                                   children: [
-                                                    Container(
-                                                      width: 248,
-                                                      height: 30,
-                                                      color: colorMorado,
-                                                    ),
-                                                    Row(
-                                                      children: [
-                                                        Container(
-                                                          width: 200,
-                                                          color: colorMorado,
-                                                          child: Text(
-                                                            'nombre evento',
-                                                            style: TextStyle(
-                                                              color:
-                                                                  Colors.white,
-                                                              fontSize: 10,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .bold,
-                                                            ),
-                                                          ),
-                                                        ),
-                                                        Container(
-                                                          width: 46,
-                                                          color: colorMorado,
-                                                          child: Text(
-                                                            '500',
-                                                            style: TextStyle(
-                                                              color:
-                                                                  Colors.white,
-                                                              fontSize: 10,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .bold,
-                                                            ),
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
                                                     SizedBox(
                                                       height: 20,
                                                     ),
-                                                    Row(
-                                                      children: [
-                                                        Container(
-                                                          width: 200,
-                                                          color: colorMorado,
-                                                          child: Text(
-                                                            'nombre evento',
-                                                            style: TextStyle(
-                                                              color:
-                                                                  Colors.white,
-                                                              fontSize: 10,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .bold,
-                                                            ),
-                                                          ),
-                                                        ),
-                                                        Container(
-                                                          width: 46,
-                                                          color: colorMorado,
-                                                          child: Text(
-                                                            '500',
-                                                            style: TextStyle(
-                                                              color:
-                                                                  Colors.white,
-                                                              fontSize: 10,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .bold,
-                                                            ),
-                                                          ),
-                                                        ),
-                                                      ],
+                                                    Text(
+                                                      mostrarGridImagenes
+                                                          ? 'Resumen de tu compra'
+                                                          : _eventoSeleccionado![
+                                                              "nombre"],
+                                                      style: TextStyle(
+                                                        color: Colors.white,
+                                                        fontSize: 20,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                      ),
                                                     ),
                                                     SizedBox(
-                                                      height: 10,
-                                                    ),
+                                                        height:
+                                                            2), // Ajustar espacio entre elementos
                                                     SizedBox(
-                                                      height: 10,
-                                                    ),
-                                                    SizedBox(
-                                                      height: 10,
-                                                    ),
-                                                    Row(
-                                                      children: [
-                                                        Container(
-                                                          decoration:
-                                                              BoxDecoration(
+                                                        height:
+                                                            2), // Ajustar espacio entre elementos
+                                                    Container(
+                                                      width: 246.3,
+                                                      decoration: BoxDecoration(
+                                                        color: colorMorado,
+                                                      ),
+                                                      child: Column(
+                                                        children: [
+                                                          Container(
+                                                            width: 248,
+                                                            height: 30,
                                                             color: colorMorado,
                                                           ),
-                                                          width: 200,
-                                                          child: Text(
-                                                            'Total',
-                                                            style: TextStyle(
-                                                              color:
-                                                                  Colors.white,
-                                                              fontSize: 10,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .bold,
-                                                            ),
+                                                          Row(
+                                                            children: [
+                                                              Container(
+                                                                width: 200,
+                                                                color:
+                                                                    colorMorado,
+                                                                child: Text(
+                                                                  'nombre evento',
+                                                                  style:
+                                                                      TextStyle(
+                                                                    color: Colors
+                                                                        .white,
+                                                                    fontSize:
+                                                                        10,
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .bold,
+                                                                  ),
+                                                                ),
+                                                              ),
+                                                              Container(
+                                                                width: 46,
+                                                                color:
+                                                                    colorMorado,
+                                                                child: Text(
+                                                                  '500',
+                                                                  style:
+                                                                      TextStyle(
+                                                                    color: Colors
+                                                                        .white,
+                                                                    fontSize:
+                                                                        10,
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .bold,
+                                                                  ),
+                                                                ),
+                                                              ),
+                                                            ],
                                                           ),
-                                                        ),
-                                                        Container(
-                                                          decoration:
-                                                              BoxDecoration(
-                                                            color: colorMorado,
+                                                          SizedBox(
+                                                            height: 20,
                                                           ),
-                                                          width: 46,
-                                                          child: Text(
-                                                            '1000',
-                                                            style: TextStyle(
-                                                              color:
-                                                                  Colors.white,
-                                                              fontSize: 10,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .bold,
-                                                            ),
+                                                          Row(
+                                                            children: [
+                                                              Container(
+                                                                width: 200,
+                                                                color:
+                                                                    colorMorado,
+                                                                child: Text(
+                                                                  'nombre evento',
+                                                                  style:
+                                                                      TextStyle(
+                                                                    color: Colors
+                                                                        .white,
+                                                                    fontSize:
+                                                                        10,
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .bold,
+                                                                  ),
+                                                                ),
+                                                              ),
+                                                              Container(
+                                                                width: 46,
+                                                                color:
+                                                                    colorMorado,
+                                                                child: Text(
+                                                                  '500',
+                                                                  style:
+                                                                      TextStyle(
+                                                                    color: Colors
+                                                                        .white,
+                                                                    fontSize:
+                                                                        10,
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .bold,
+                                                                  ),
+                                                                ),
+                                                              ),
+                                                            ],
                                                           ),
-                                                        ),
-                                                      ],
+                                                          SizedBox(
+                                                            height: 10,
+                                                          ),
+                                                          SizedBox(
+                                                            height: 10,
+                                                          ),
+                                                          SizedBox(
+                                                            height: 10,
+                                                          ),
+                                                          Row(
+                                                            children: [
+                                                              Container(
+                                                                decoration:
+                                                                    BoxDecoration(
+                                                                  color:
+                                                                      colorMorado,
+                                                                ),
+                                                                width: 200,
+                                                                child: Text(
+                                                                  'Total',
+                                                                  style:
+                                                                      TextStyle(
+                                                                    color: Colors
+                                                                        .white,
+                                                                    fontSize:
+                                                                        10,
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .bold,
+                                                                  ),
+                                                                ),
+                                                              ),
+                                                              Container(
+                                                                decoration:
+                                                                    BoxDecoration(
+                                                                  color:
+                                                                      colorMorado,
+                                                                ),
+                                                                width: 46,
+                                                                child: Text(
+                                                                  '1000',
+                                                                  style:
+                                                                      TextStyle(
+                                                                    color: Colors
+                                                                        .white,
+                                                                    fontSize:
+                                                                        10,
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .bold,
+                                                                  ),
+                                                                ),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                          Container(
+                                                              decoration:
+                                                                  BoxDecoration(
+                                                                borderRadius:
+                                                                    BorderRadius
+                                                                        .circular(
+                                                                            40),
+                                                                color:
+                                                                    colorMorado,
+                                                              ),
+                                                              width: 246.3,
+                                                              child: ElevatedButton(
+                                                                  onPressed:
+                                                                      () {},
+                                                                  child: Text(
+                                                                      "Ir al carrito"))),
+                                                          SizedBox(
+                                                            height: 5,
+                                                          ),
+                                                          Container(
+                                                              decoration:
+                                                                  BoxDecoration(
+                                                                borderRadius:
+                                                                    BorderRadius
+                                                                        .circular(
+                                                                            40),
+                                                                color:
+                                                                    colorMorado,
+                                                              ),
+                                                              width: 246.3,
+                                                              child:
+                                                                  ElevatedButton(
+                                                                      style: ElevatedButton
+                                                                          .styleFrom(
+                                                                        backgroundColor:
+                                                                            colorNaranja,
+                                                                        foregroundColor:
+                                                                            colorMorado,
+                                                                      ),
+                                                                      onPressed:
+                                                                          () {},
+                                                                      child: Text(
+                                                                          "Pagar directamente"))),
+                                                        ],
+                                                      ),
                                                     ),
-                                                    Container(
-                                                        decoration:
-                                                            BoxDecoration(
-                                                          borderRadius:
-                                                              BorderRadius
-                                                                  .circular(40),
-                                                          color: colorMorado,
-                                                        ),
-                                                        width: 246.3,
-                                                        child: ElevatedButton(
-                                                            onPressed: () {},
-                                                            child: Text(
-                                                                "Ir al carrito"))),
-                                                    SizedBox(
-                                                      height: 5,
-                                                    ),
-                                                    Container(
-                                                        decoration:
-                                                            BoxDecoration(
-                                                          borderRadius:
-                                                              BorderRadius
-                                                                  .circular(40),
-                                                          color: colorMorado,
-                                                        ),
-                                                        width: 246.3,
-                                                        child: ElevatedButton(
-                                                            style:
-                                                                ElevatedButton
-                                                                    .styleFrom(
-                                                              backgroundColor:
-                                                                  colorNaranja,
-                                                              foregroundColor:
-                                                                  colorMorado,
-                                                            ),
-                                                            onPressed: () {},
-                                                            child: Text(
-                                                                "Pagar directamente"))),
+
+                                                    // Añadir más elementos aquí
                                                   ],
                                                 ),
+                                              )
+                                            : Icon(
+                                                Icons.shopping_cart_sharp,
+                                                color: colorNaranja,
                                               ),
-
-                                              // Añadir más elementos aquí
-                                            ],
+                                      )
+                                    : Center(
+                                        child: Text(
+                                          _eventoSeleccionado!["nombre"],
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.bold,
                                           ),
-                                        )
-                                      : Icon(
-                                          Icons.shopping_cart_sharp,
-                                          color: colorNaranja,
                                         ),
-                                ),
+                                      ),
                               ),
                             ),
                           ),
